@@ -1,16 +1,19 @@
 ﻿module Gsuuon.Command
 
+open System
+open System.Diagnostics
+
 type ProcResult = {
   out : string
   err : string
   code : int
 }
 
-let exec handleOut handleErr (cmd: string) =
+let exec handleOut handleErr (cmd: string) (args: string) =
   let processStartInfo = new ProcessStartInfo()
 
-  processStartInfo.FileName <- "cmd.exe"
-  processStartInfo.Arguments <- sprintf "/C %s" cmd
+  processStartInfo.FileName <- cmd
+  processStartInfo.Arguments <- args
   processStartInfo.UseShellExecute <- false
   processStartInfo.RedirectStandardOutput <- true
   processStartInfo.RedirectStandardError <- true
@@ -65,10 +68,9 @@ let exec handleOut handleErr (cmd: string) =
     code = proc.ExitCode
   }
 
-// We're sending everything except output file to stderr so stdout is just the output file name
-let show = exec (eprintfn "%s") (eprintfn "%s")
-let hide = exec ignore ignore
+let shown = exec (printfn "%s") (eprintfn "%s")
+let eshown = exec (eprintfn "%s") (eprintfn "%s")
+let hidden = exec ignore ignore
+
 
 let sleep ms = Threading.Thread.Sleep 1000
-
-
