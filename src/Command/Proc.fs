@@ -109,10 +109,21 @@ let proc (cmd: string) (args: string) (input: StreamReader) =
 
     // TODO stream the stream
     // read all of input into stdin then close
-    let inp = input.ReadToEnd()
-    printfn "<%s> [%s]" cmd inp
-    stdin.Write(inp)
-    stdin.Close()
+
+    task {
+        while true do
+            match! input.ReadLineAsync() with
+            | null ->
+                // readline can return immediately if we're at end of stream but stream is not closed
+                // how do I figure out if the stream has closed?
+                // also maybe the stream never closes?
+                do! Threading.Tasks.Task.Delay 100
+            | line ->
+                printfn "<%s> [%s]" cmd line
+                do! stdin.WriteLineAsync(line)
+                do! stdin.FlushAsync()
+    } |> ignore
+
     // I tried for a long time to make this actually stream, without closing, but it just doesn't work
     // the dotnet stream api seems super thorny
     // getting .Length can block forever, checking .EndOfStream can block forever, who knows what else :/
