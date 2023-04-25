@@ -4,11 +4,15 @@ open System
 open System.IO
 open System.Diagnostics
 
+// TODO I need a Stream class that keeps track of if it's open or closed
+// stream class that allows multiple views on it (separate read positions)
+
 [<AutoOpen>]
 module ThreadPrint =
     // ripped from http://www.fssnip.net/7Vy/title/Supersimple-thread-safe-colored-console-output
     let clog = // color log
-        let lockObj = obj()
+        let lockObj = obj ()
+
         fun color s ->
             lock lockObj (fun _ ->
                 Console.ForegroundColor <- color
@@ -38,6 +42,9 @@ type Proc =
         | Stderr -> prev.stderr
         | Combine names -> failwithf "🤷 what do?"
 
+
+/// Prepare the console. Sets UTF-8 Encoding and handles Ctrl-C.
+/// TODO do I need this?
 let setupConsole () =
     // Display emojis
     Console.OutputEncoding <- Text.Encoding.UTF8
@@ -45,49 +52,64 @@ let setupConsole () =
     // Don't die on ctrl-c, but passthrough ctrl-c to child processes
     Console.CancelKeyPress.Add(fun e -> e.Cancel <- true)
 
-let echo (reader: StreamReader) =
-    (task {
-        let mutable hasLine = true
+/// Handle each line of an input
+let consume handleLine (input: StreamReader) =
+    task {
+        while true do
+            match! input.ReadLineAsync() with
+            | null -> do! Threading.Tasks.Task.Delay 16
+            | line -> handleLine line
+    }
+    |> ignore
 
-        while hasLine do
-            let! line = reader.ReadLineAsync()
+/// Read the stream and ignore it. Some processes may block until their stdout/stderr buffer is read.
+let sink (input: StreamReader) = consume ignore input
 
-            if line = null then
-                hasLine <- false
-            else
-                clog ConsoleColor.Green line
-    })
-        .Wait()
-
+/// Handle each line of an input stream and duplicate it for an output stream
+/// NOTE This accumulates in memory forever
 let tap handleLine (input: StreamReader) =
     let mem = new MemoryStream()
     let writer = new StreamWriter(mem)
-
-    writer.AutoFlush <- true
     let reader = new StreamReader(mem)
+    writer.AutoFlush <- true
 
     task {
         while true do
-            let! line = input.ReadLineAsync()
-            // line immediately returns null if we're just at the end of the stream
-            // You'd think this blocks?
-            // how do we find out if the stream has been closed?
-
-            if line = null then // this is not correct?
-                do! Threading.Tasks.Task.Delay 16
-            else
+            match! input.ReadLineAsync() with
+            | null -> do! Threading.Tasks.Task.Delay 16
+            | line ->
                 handleLine line
 
                 let originalPosition = mem.Position
+
+                // write to end of memorystream
                 mem.Seek(0, SeekOrigin.End) |> ignore
                 writer.WriteLine(line)
+
+                // move position back to where it was for reader
                 mem.Seek(originalPosition, SeekOrigin.Begin) |> ignore
-    } |> ignore
+    }
+    |> ignore
 
     reader
 
-let read (reader: StreamReader) = reader.ReadToEnd()
+/// Read the stream to its current end. Returns immediately if the stream is already at the
+/// end without blocking.
+let read (input: StreamReader) = input.ReadToEnd()
 
+/// Wait for the process to finish and collect the standard in and error pipes
+let complete (p: Proc) =
+    let pOut = tap ignore p.stdout
+    let pErr = tap ignore p.stderr
+
+    p.proc.WaitForExit()
+
+    { p with
+        stdout = pOut
+        stderr = pErr
+    }
+    
+/// Create a pipe input (StreamReader) from some text
 let from (text: string) =
     let mem = new MemoryStream() // no ctor means expandable
 
@@ -96,6 +118,7 @@ let from (text: string) =
 
     new StreamReader(mem)
 
+/// Create a new Proc
 let proc (cmd: string) (args: string) (input: StreamReader) =
     let processStartInfo = new ProcessStartInfo()
 
@@ -115,9 +138,6 @@ let proc (cmd: string) (args: string) (input: StreamReader) =
     let stdout = p.StandardOutput
     let stderr = p.StandardError
 
-    // TODO stream the stream
-    // read all of input into stdin then close
-
     task {
         while true do
             match! input.ReadLineAsync() with
@@ -127,10 +147,11 @@ let proc (cmd: string) (args: string) (input: StreamReader) =
                 // also maybe the stream never closes?
                 do! Threading.Tasks.Task.Delay 100
             | line ->
-                clog ConsoleColor.DarkCyan $"<{cmd}> [{line}]"
+                clog ConsoleColor.Red $"<{cmd}> [{line}]"
                 do! stdin.WriteLineAsync(line)
                 do! stdin.FlushAsync()
-    } |> ignore
+    }
+    |> ignore
 
     // I tried for a long time to make this actually stream, without closing, but it just doesn't work
     // the dotnet stream api seems super thorny
@@ -143,7 +164,9 @@ let proc (cmd: string) (args: string) (input: StreamReader) =
       stderr = stderr
       proc = p }
 
+/// Wait for a proc to exit
 let wait proc =
+    clog ConsoleColor.Cyan $"[waiting: {proc.cmd} {proc.args}]"
     proc.proc.WaitForExit()
     proc
 
