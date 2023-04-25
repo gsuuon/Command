@@ -4,6 +4,17 @@ open System
 open System.IO
 open System.Diagnostics
 
+[<AutoOpen>]
+module ThreadPrint =
+    // ripped from http://www.fssnip.net/7Vy/title/Supersimple-thread-safe-colored-console-output
+    let clog = // color log
+        let lockObj = obj()
+        fun color s ->
+            lock lockObj (fun _ ->
+                Console.ForegroundColor <- color
+                printfn "%s" s
+                Console.ResetColor())
+
 type PipeName =
     | Stdout
     | Stdin
@@ -44,7 +55,7 @@ let echo (reader: StreamReader) =
             if line = null then
                 hasLine <- false
             else
-                printfn "%s" line
+                clog ConsoleColor.Green line
     })
         .Wait()
 
@@ -67,13 +78,10 @@ let tap handleLine (input: StreamReader) =
             else
                 handleLine line
 
-                handleLine (sprintf "[Tap pos start: %i]" mem.Position)
                 let originalPosition = mem.Position
                 mem.Seek(0, SeekOrigin.End) |> ignore
                 writer.WriteLine(line)
-                handleLine (sprintf "[Tap pos write: %i]" mem.Position)
                 mem.Seek(originalPosition, SeekOrigin.Begin) |> ignore
-                handleLine (sprintf "[Tap pos end: %i]" mem.Position)
     } |> ignore
 
     reader
@@ -119,7 +127,7 @@ let proc (cmd: string) (args: string) (input: StreamReader) =
                 // also maybe the stream never closes?
                 do! Threading.Tasks.Task.Delay 100
             | line ->
-                printfn "<%s> [%s]" cmd line
+                clog ConsoleColor.DarkCyan $"<{cmd}> [{line}]"
                 do! stdin.WriteLineAsync(line)
                 do! stdin.FlushAsync()
     } |> ignore

@@ -1,24 +1,11 @@
 ﻿open Gsuuon.Proc
 
-open System.IO
+open System
 
-// host.stdin |> echo
-// proc "echo" "boop" host.stdin <!> Stdout |> echo
-// proc "findstr" "h" host.stdin <!> Stdout  |> echo
-// proc "sed" "-e s/hi/hello/" host.stdin <!> Stdout |> echo
-
-// let out = proc "echo" "feafs" host.stdin <!> Stdout |> proc "sed" "-e s/hi/hello/" <!> Stdout |> read
-
-// proc "sed" "-e s/hi/hello/" (from out) <!> Stdout |> echo
-
-// proc ("echo", "hi") <!> Stdout |> echo
-
-// proc "echo" "hey" host.stdin <!> Stdout |> tap (printfn "x: %s") |> tap (printfn "y: %s") |> ignore
-
-//from "boop"
-proc "echo" "boop" host.stdin <!> Stdout
-|> tap (printfn "x: %s")
-|> tap (printfn "y: %s") 
+proc "echo" "boop ya snoot" host.stdin <!> Stdout
+|> tap (fun s -> clog ConsoleColor.Green $"echo: {s}")
+|> proc "sed" "-u -e s/snoot/toot/" <!> Stdout
+|> tap (fun s -> clog ConsoleColor.Blue $"sed: {s}")
 |> ignore
 
 System.Threading.Thread.Sleep 100
