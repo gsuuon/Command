@@ -62,16 +62,16 @@ let openai msg =
     ]
 
     let req = proc "curl" args host.stdin
-    req <!> Stdout |>
-        consume (fun s ->
-            match parse s with
-            | Empty | Done -> ()
-            | Partial x -> clog ConsoleColor.Yellow x
+
+    { req with
+        stdout = req <!> Stdout |> transform (fun write line ->
+            match parse line with
+            | Partial x -> write x
+            | Done -> write "\n" // make sure we have at least one newline
             | Reason "limit" -> clogn ConsoleColor.Red $"[Token limit]"
-            | _ -> ()
-        )
-    req <!> Stderr |> sink
-    req |> wait |> ignore
+            | Empty |  _ -> ()
+            )
+    }
     
 let alternate =
     let mutable count = 0
@@ -87,4 +87,5 @@ let alternate =
 
         count <- count + 1
 
-host.stdin |> read |> openai
+let req = host.stdin |> read |> openai
+req <!> Stdout |> consume (clog ConsoleColor.Green)

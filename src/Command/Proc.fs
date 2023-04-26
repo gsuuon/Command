@@ -3,15 +3,12 @@ module Gsuuon.Proc
 open System
 open System.IO
 open System.Diagnostics
-open System.Collections.ObjectModel
 
 // TODO I need a Stream class that keeps track of if it's open or closed
 // stream class that allows multiple views on it (separate read positions)
 
 [<AutoOpen>]
-module ThreadPrint =
-    // ripped from http://www.fssnip.net/7Vy/title/Supersimple-thread-safe-colored-console-output
-    
+module Threads =
     let lockObj = obj ()
     
     let private clog' printer color s =
@@ -23,6 +20,22 @@ module ThreadPrint =
 
     let clog = clog' (printf "%s")
     let clogn = clog' (printfn "%s")
+
+    module Cells =
+        /// cells.
+        let mutable procCount = 0L
+        /// cells. interlinked.
+        let incr () = Threading.Interlocked.Increment(&procCount) |> ignore
+        /// interlinked.
+        let decr () = Threading.Interlocked.Decrement(&procCount) |> ignore
+        /// within cells interlinked.
+        let hold () =
+            (task {
+                while Threading.Interlocked.Read(&procCount) > 0 do
+                    do! Threading.Tasks.Task.Delay 100
+            }).Wait()
+
+        AppDomain.CurrentDomain.ProcessExit.Add(fun _ -> hold())
 
 type PipeName =
     | Stdout
@@ -67,6 +80,29 @@ let consume handleLine (input: StreamReader) =
     }
     |> ignore
 
+// TODO dry with tap
+let transform handleLine (input: StreamReader) =
+    let mem = new MemoryStream()
+    let writer = new StreamWriter(mem)
+    let reader = new StreamReader(mem)
+    writer.AutoFlush <- true
+
+    let write (line: string) =
+        let originalPosition = mem.Position
+        mem.Seek(0, SeekOrigin.End) |> ignore
+        writer.Write(line)
+        mem.Seek(originalPosition, SeekOrigin.Begin) |> ignore
+
+    task {
+        while true do
+            match! input.ReadLineAsync() with
+            | null -> do! Threading.Tasks.Task.Delay 16
+            | line -> handleLine write line
+    }
+    |> ignore
+
+    reader
+    
 /// Read the stream and ignore it. Some processes may block until their stdout/stderr buffer is read.
 let sink (input: StreamReader) = consume ignore input
 
@@ -127,24 +163,24 @@ let from (text: string) =
 let proc (cmd: string) (args: string seq) (input: StreamReader) =
     let processStartInfo = new ProcessStartInfo()
 
-    let cmdText = "cmd.exe"
-
-    processStartInfo.FileName <- cmdText 
+    // TODO xplat
+    processStartInfo.FileName <- "cmd.exe" 
     processStartInfo.ArgumentList.Add "/c"
     processStartInfo.ArgumentList.Add cmd
     args |> Seq.iter (processStartInfo.ArgumentList.Add)
-
 
     processStartInfo.UseShellExecute <- false
     processStartInfo.RedirectStandardOutput <- true
     processStartInfo.RedirectStandardError <- true
     processStartInfo.RedirectStandardInput <- true
 
-
     let p = new Process()
     p.StartInfo <- processStartInfo
-
+    p.EnableRaisingEvents <- true
+    p.Exited.Add(fun _ -> Cells.decr())
     p.Start() |> ignore
+
+    Cells.incr()
 
     let stdin = p.StandardInput
     let stdout = p.StandardOutput
