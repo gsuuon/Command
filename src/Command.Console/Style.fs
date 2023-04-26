@@ -12,7 +12,7 @@ module Escape =
     // TODO probably belongs somewhere else
     let ESC = "\x1b"
 
-    let sgr x = ESC + "]" + x + "m"
+    let sgr x = ESC + "[" + x + "m"
 
     let osc code args =
         ESC + "]" + code + ";" + (String.concat ";" args) + "\a"
