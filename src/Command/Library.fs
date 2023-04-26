@@ -7,35 +7,21 @@ open System.Diagnostics
 // TODO I need a Stream class that keeps track of if it's open or closed
 // stream class that allows multiple views on it (separate read positions)
 
-[<AutoOpen>]
-module Threads =
-    let lockObj = obj ()
-    
-    let private clog' printer color s =
-        lock lockObj (fun _ ->
-            Console.ForegroundColor <- color
-            printer s
-            Console.ResetColor()
-        )
+module Cells =
+    /// cells.
+    let mutable procCount = 0L
+    /// cells. interlinked.
+    let incr () = Threading.Interlocked.Increment(&procCount) |> ignore
+    /// interlinked.
+    let decr () = Threading.Interlocked.Decrement(&procCount) |> ignore
+    /// within cells interlinked.
+    let hold () =
+        (task {
+            while Threading.Interlocked.Read(&procCount) > 0 do
+                do! Threading.Tasks.Task.Delay 100
+        }).Wait()
 
-    let clog = clog' (printf "%s")
-    let clogn = clog' (printfn "%s")
-
-    module Cells =
-        /// cells.
-        let mutable procCount = 0L
-        /// cells. interlinked.
-        let incr () = Threading.Interlocked.Increment(&procCount) |> ignore
-        /// interlinked.
-        let decr () = Threading.Interlocked.Decrement(&procCount) |> ignore
-        /// within cells interlinked.
-        let hold () =
-            (task {
-                while Threading.Interlocked.Read(&procCount) > 0 do
-                    do! Threading.Tasks.Task.Delay 100
-            }).Wait()
-
-        AppDomain.CurrentDomain.ProcessExit.Add(fun _ -> hold())
+    AppDomain.CurrentDomain.ProcessExit.Add(fun _ -> hold())
 
 type PipeName =
     | Stdout
@@ -206,7 +192,6 @@ let proc (cmd: string) (args: string seq) (input: StreamReader) =
                 // also maybe the stream never closes?
                 do! Threading.Tasks.Task.Delay 100
             | line ->
-                clogn ConsoleColor.Red $"<{cmd}> [{line}]"
                 do! stdin.WriteLineAsync(line)
                 do! stdin.FlushAsync()
     }
