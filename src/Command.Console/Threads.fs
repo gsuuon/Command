@@ -1,4 +1,4 @@
-module Gsuuon.Console.Threads
+module Gsuuon.Command.Console.Threads
 
 let lockObj = obj ()
 

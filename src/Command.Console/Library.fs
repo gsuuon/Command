@@ -1,8 +1,9 @@
-namespace Gsuuon.Console
+namespace Gsuuon.Command.Console
+
+open Gsuuon.Command.Console.Styling
 
 module Style =
     open System.Drawing
-    open Gsuuon.Console.Styling
 
     let rgb (r, g, b) = Color.FromArgb(r, g, b)
 
@@ -38,7 +39,7 @@ module Utility =
               "inline=1:" + base64Image ]
 
 module Log =
-    open Gsuuon.Console.Threads
+    open Gsuuon.Command.Console.Threads
 
     let log = printf "%s" |> log'
     let logn = printfn "%s" |> log'
