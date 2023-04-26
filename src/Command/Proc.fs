@@ -3,6 +3,7 @@ module Gsuuon.Proc
 open System
 open System.IO
 open System.Diagnostics
+open System.Collections.ObjectModel
 
 // TODO I need a Stream class that keeps track of if it's open or closed
 // stream class that allows multiple views on it (separate read positions)
@@ -10,14 +11,18 @@ open System.Diagnostics
 [<AutoOpen>]
 module ThreadPrint =
     // ripped from http://www.fssnip.net/7Vy/title/Supersimple-thread-safe-colored-console-output
-    let clog = // color log
-        let lockObj = obj ()
+    
+    let lockObj = obj ()
+    
+    let private clog' printer color s =
+        lock lockObj (fun _ ->
+            Console.ForegroundColor <- color
+            printer s
+            Console.ResetColor()
+        )
 
-        fun color s ->
-            lock lockObj (fun _ ->
-                Console.ForegroundColor <- color
-                printfn "%s" s
-                Console.ResetColor())
+    let clog = clog' (printf "%s")
+    let clogn = clog' (printfn "%s")
 
 type PipeName =
     | Stdout
@@ -27,7 +32,7 @@ type PipeName =
 
 type Proc =
     { cmd: string
-      args: string
+      args: string seq
       stdin: StreamWriter
       stdout: StreamReader
       stderr: StreamReader
@@ -119,15 +124,22 @@ let from (text: string) =
     new StreamReader(mem)
 
 /// Create a new Proc
-let proc (cmd: string) (args: string) (input: StreamReader) =
+let proc (cmd: string) (args: string seq) (input: StreamReader) =
     let processStartInfo = new ProcessStartInfo()
 
-    processStartInfo.FileName <- "cmd.exe"
-    processStartInfo.Arguments <- $"/c {cmd} {args}"
+    let cmdText = "cmd.exe"
+
+    processStartInfo.FileName <- cmdText 
+    processStartInfo.ArgumentList.Add "/c"
+    processStartInfo.ArgumentList.Add cmd
+    args |> Seq.iter (processStartInfo.ArgumentList.Add)
+
+
     processStartInfo.UseShellExecute <- false
     processStartInfo.RedirectStandardOutput <- true
     processStartInfo.RedirectStandardError <- true
     processStartInfo.RedirectStandardInput <- true
+
 
     let p = new Process()
     p.StartInfo <- processStartInfo
@@ -147,7 +159,7 @@ let proc (cmd: string) (args: string) (input: StreamReader) =
                 // also maybe the stream never closes?
                 do! Threading.Tasks.Task.Delay 100
             | line ->
-                clog ConsoleColor.Red $"<{cmd}> [{line}]"
+                clogn ConsoleColor.Red $"<{cmd}> [{line}]"
                 do! stdin.WriteLineAsync(line)
                 do! stdin.FlushAsync()
     }
@@ -166,7 +178,6 @@ let proc (cmd: string) (args: string) (input: StreamReader) =
 
 /// Wait for a proc to exit
 let wait proc =
-    clog ConsoleColor.Cyan $"[waiting: {proc.cmd} {proc.args}]"
     proc.proc.WaitForExit()
     proc
 
