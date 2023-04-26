@@ -7,6 +7,8 @@
 
   <ItemGroup>
     <Compile Include="Style.fs" />
+    <Compile Include="Threads.fs" />
+    <Compile Include="Library.fs" />
   </ItemGroup>
 
 </Project>

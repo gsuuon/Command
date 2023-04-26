@@ -1,4 +1,4 @@
-module Gsuuon.Console.Style
+module Gsuuon.Console.Styling
 
 open System.Drawing
 open System.Numerics
@@ -9,15 +9,22 @@ type StyleCommand =
     | Text of string
 
 module Escape =
-    let escape x = "\x1b[" + x + "m"
-    let reset = escape "0"
+    // TODO probably belongs somewhere else
+    let ESC = "\x1b"
+
+    let sgr x = ESC + "]" + x + "m"
+
+    let osc code args =
+        ESC + "]" + code + ";" + (String.concat ";" args) + "\a"
+
+    let reset = sgr "0"
 
     let rgb (color: Color) = $"{color.R};{color.G};{color.B}"
 
     let apply =
         function
-        | Foreground color -> escape ("38;2;" + rgb (color))
-        | Background color -> escape ("48;2;" + rgb (color))
+        | Foreground color -> sgr ("38;2;" + rgb (color))
+        | Background color -> sgr ("48;2;" + rgb (color))
         | Text text -> text
 
 module Math =
@@ -28,19 +35,4 @@ module Math =
         Color.FromArgb(int vec.X, int vec.Y, int vec.Z)
 
     let lerp (colorA: Color) (colorB: Color) (strengthB: float) =
-        (vec colorA, vec colorB, float32 strengthB)
-        |> Vector3.Lerp
-        |> unvec
-
-let rgb (r, g, b) = Color.FromArgb(r, g, b)
-
-let lighten color amount = Math.lerp color Color.White amount
-let darken color amount = Math.lerp color Color.Black amount
-
-let fg = Foreground
-let bg = Background
-let text = Text
-
-let style (cmds: StyleCommand seq) =
-    let out = cmds |> Seq.map Escape.apply |> String.concat ""
-    out + Escape.reset
+        (vec colorA, vec colorB, float32 strengthB) |> Vector3.Lerp |> unvec
