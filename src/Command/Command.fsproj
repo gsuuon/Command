@@ -7,7 +7,6 @@
 
   <ItemGroup>
     <Compile Include="Proc.fs" />
-    <Compile Include="Library.fs" />
   </ItemGroup>
 
   <PropertyGroup>
