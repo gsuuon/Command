@@ -87,5 +87,4 @@ let alternate =
 
         count <- count + 1
 
-let req = host.stdin |> read |> openai
-req <!> Stdout |> consume (clog ConsoleColor.Green)
+host.stdin |> read |> openai <!> Stdout |> consume (clog ConsoleColor.Green)

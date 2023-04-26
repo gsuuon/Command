@@ -80,8 +80,17 @@ let consume handleLine (input: StreamReader) =
     }
     |> ignore
 
+
 // TODO dry with tap
-let transform handleLine (input: StreamReader) =
+/// Transforms a stream (you probably want to write a newline at some point)
+/// transformLine is a fn that takes a writer and a line, and calls writer with
+/// the transformed line. If you need to do setup, you can -- e.g.:
+/// <example>
+/// inStream |> transform (fun writer ->
+///     let write = expensiveSetup(writer)
+///     fun line -> write line)
+/// </example>
+let transform transformLine (input: StreamReader) =
     let mem = new MemoryStream()
     let writer = new StreamWriter(mem)
     let reader = new StreamReader(mem)
@@ -93,11 +102,13 @@ let transform handleLine (input: StreamReader) =
         writer.Write(line)
         mem.Seek(originalPosition, SeekOrigin.Begin) |> ignore
 
+    let transformedWrite = transformLine write
+
     task {
         while true do
             match! input.ReadLineAsync() with
             | null -> do! Threading.Tasks.Task.Delay 16
-            | line -> handleLine write line
+            | line -> transformedWrite line
     }
     |> ignore
 
