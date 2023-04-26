@@ -1,7 +1,7 @@
-ls src
-| where type == dir
-| get name
-| each {|d|
-	cd $d
-	dotnet pack
-}
+[ Command
+	Command.Console
+	Command.Utility ]
+	| each {|d|
+			cd $"src/($d)"
+			dotnet pack
+	}
