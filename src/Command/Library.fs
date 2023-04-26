@@ -1,4 +1,4 @@
-module Gsuuon.Proc
+module Gsuuon.Command
 
 open System
 open System.IO
