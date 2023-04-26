@@ -1,3 +1,3 @@
 # Command
 
-Utility library for working with commands from dotnet
+A group of commandline and terminal tools

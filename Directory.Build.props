@@ -1,0 +1,10 @@
+<Project>
+    <PropertyGroup>
+        <PackageOutputPath>$(MSBuildThisFileDirectory)packages</PackageOutputPath>
+        <PackageLicenseFile>LICENSE</PackageLicenseFile>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <None Include="$(MSBuildThisFileDirectory)LICENSE" Pack="true" PackagePath="\"/>
+    </ItemGroup>
+</Project>

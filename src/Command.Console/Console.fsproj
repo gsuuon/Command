@@ -5,6 +5,15 @@
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
 
+    <PropertyGroup>
+        <PackageId>Gsuuon.Command.Console</PackageId>
+        <!-- <PackageReadmeFile>README.md</PackageReadmeFile> -->
+    </PropertyGroup>
+
+    <ItemGroup>
+        <!-- <None Include="./README.md" Pack="true" PackagePath="\"/> -->
+    </ItemGroup>
+
   <ItemGroup>
     <Compile Include="Style.fs" />
     <Compile Include="Threads.fs" />
