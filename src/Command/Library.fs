@@ -7,9 +7,9 @@ open System.Diagnostics
 // TODO I need a Stream class that keeps track of if it's open or closed
 // stream class that allows multiple views on it (separate read positions)
 
-module Cells =
+module private Cells =
     /// cells.
-    let mutable procCount = 0L
+    let mutable procCount = 0
     /// cells. interlinked.
     let incr () = Threading.Interlocked.Increment(&procCount) |> ignore
     /// interlinked.
@@ -17,7 +17,7 @@ module Cells =
     /// within cells interlinked.
     let hold () =
         (task {
-            while Threading.Interlocked.Read(&procCount) > 0 do
+            while procCount > 0 do
                 do! Threading.Tasks.Task.Delay 100
         }).Wait()
 
