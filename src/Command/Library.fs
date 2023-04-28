@@ -34,13 +34,14 @@ module Stream =
         task {
             let sb = new Text.StringBuilder()
             let mutable shouldRead = true // no while!
+            let mutable c = Array.zeroCreate<char> 1
 
             while shouldRead do
-                let next = input.Read()
-                if next = -1 then // end
+                let! readCount = input.ReadAsync(c)
+                if readCount = 0 then // end
                     shouldRead <- false
                 else
-                    let nextChar = next |> char
+                    let nextChar = c[0]
                     sb.Append nextChar |> ignore
 
                     if nextChar = '\n' then
@@ -171,16 +172,16 @@ let readNow (input: StreamReader) =
 
     let mutable hasRead = false
 
+    let lines = task {
+        let! line = Stream.readLineIncludeNewline input
+        hasRead <- true
+
+        let! lines = input.ReadToEndAsync()
+
+        return line + lines
+    }
+
     task {
-        let lines = task {
-            let! line = Stream.readLineIncludeNewline input
-            hasRead <- true
-
-            let! lines = input.ReadToEndAsync()
-
-            return line + lines
-        }
-
         do! Tasks.Task.Delay timeout
 
         if hasRead then return! lines
