@@ -137,9 +137,17 @@ let tap handleLine (input: StreamReader) =
 
     reader
 
+
+/// Read the stream to its current end. Does not read until the stream closes.
+/// That means it returns immediately if it's already at the end.
+/// It blocks until it reaches the end of the stream - so if there's nothing to
+/// read at all it will block forever.
+let readBlock (input: StreamReader) = input.ReadToEnd()
+
 /// Read the stream to its current end. Returns immediately if the 
 /// stream is already at the end, or times out in 100ms if no line is read.
-let read (input: StreamReader) =
+/// Useful for the initial input stream to an application.
+let readNow (input: StreamReader) =
     let timeout = 100
 
     let mutable hasRead = false
@@ -199,7 +207,12 @@ let proc (cmd: string) (args: string seq) (input: StreamReader) =
     let p = new Process()
     p.StartInfo <- processStartInfo
     p.EnableRaisingEvents <- true
-    p.Exited.Add(fun _ -> Cells.decr())
+    p.Exited.Add(fun _ ->
+        if p.ExitCode <> 0 then
+            eprintfn "<%s> exited %i" cmd p.ExitCode
+
+        Cells.decr()
+    )
     p.Start() |> ignore
 
     Cells.incr()
@@ -221,10 +234,6 @@ let proc (cmd: string) (args: string seq) (input: StreamReader) =
                 do! stdin.FlushAsync()
     }
     |> ignore
-
-    // I tried for a long time to make this actually stream, without closing, but it just doesn't work
-    // the dotnet stream api seems super thorny
-    // getting .Length can block forever, checking .EndOfStream can block forever, who knows what else :/
 
     { cmd = cmd
       args = args
