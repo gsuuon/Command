@@ -73,6 +73,58 @@ type Proc =
         | Stderr -> prev.stderr
         | Combine names -> failwithf "🤷 what do?"
 
+    static member Create (cmd: string, args: string seq, ?inputStream: StreamReader) =
+        let processStartInfo = new ProcessStartInfo()
+
+        processStartInfo.FileName <- cmd
+
+        args |> Seq.iter (processStartInfo.ArgumentList.Add)
+
+        processStartInfo.UseShellExecute <- false
+        processStartInfo.RedirectStandardOutput <- true
+        processStartInfo.RedirectStandardError <- true
+        processStartInfo.RedirectStandardInput <- true
+
+        let p = new Process()
+        p.StartInfo <- processStartInfo
+        p.EnableRaisingEvents <- true
+        p.Exited.Add(fun _ ->
+            if p.ExitCode <> 0 then
+                eprintfn "<%s> exited %i" cmd p.ExitCode
+
+            Cells.decr()
+        )
+        p.Start() |> ignore
+
+        Cells.incr()
+
+        let stdin = p.StandardInput
+        let stdout = p.StandardOutput
+        let stderr = p.StandardError
+
+        match inputStream with
+        | Some input ->
+            task {
+                while true do
+                    match! input.ReadLineAsync() with
+                    | null ->
+                        // readline can return immediately if we're at end of stream but stream is not closed
+                        // how do I figure out if the stream has closed?
+                        // also maybe the stream never closes?
+                        do! Threading.Tasks.Task.Delay 100
+                    | line ->
+                        do! stdin.WriteLineAsync(line)
+                        do! stdin.FlushAsync()
+            }
+            |> ignore
+        | None -> ()
+
+        { cmd = cmd
+          args = args
+          stdin = stdin
+          stdout = stdout
+          stderr = stderr
+          proc = p }
 
 /// Prepare the console. Sets UTF-8 Encoding and handles Ctrl-C.
 /// TODO do I need this?
@@ -212,55 +264,7 @@ let from (text: string) =
     new StreamReader(mem)
 
 /// Create a new Proc
-let proc (cmd: string) (args: string seq) (input: StreamReader) =
-    let processStartInfo = new ProcessStartInfo()
-
-    processStartInfo.FileName <- cmd
-
-    args |> Seq.iter (processStartInfo.ArgumentList.Add)
-
-    processStartInfo.UseShellExecute <- false
-    processStartInfo.RedirectStandardOutput <- true
-    processStartInfo.RedirectStandardError <- true
-    processStartInfo.RedirectStandardInput <- true
-
-    let p = new Process()
-    p.StartInfo <- processStartInfo
-    p.EnableRaisingEvents <- true
-    p.Exited.Add(fun _ ->
-        if p.ExitCode <> 0 then
-            eprintfn "<%s> exited %i" cmd p.ExitCode
-
-        Cells.decr()
-    )
-    p.Start() |> ignore
-
-    Cells.incr()
-
-    let stdin = p.StandardInput
-    let stdout = p.StandardOutput
-    let stderr = p.StandardError
-
-    task {
-        while true do
-            match! input.ReadLineAsync() with
-            | null ->
-                // readline can return immediately if we're at end of stream but stream is not closed
-                // how do I figure out if the stream has closed?
-                // also maybe the stream never closes?
-                do! Threading.Tasks.Task.Delay 100
-            | line ->
-                do! stdin.WriteLineAsync(line)
-                do! stdin.FlushAsync()
-    }
-    |> ignore
-
-    { cmd = cmd
-      args = args
-      stdin = stdin
-      stdout = stdout
-      stderr = stderr
-      proc = p }
+let proc = Proc.Create
 
 /// Wait for a proc to exit
 let wait proc =
