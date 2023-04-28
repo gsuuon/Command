@@ -142,8 +142,15 @@ let consume handleLine (input: StreamReader) =
             match! Stream.readLineIncludeNewline input with
             | "" -> do! Threading.Tasks.Task.Delay 16
             | line -> handleLine line
-    }
-    |> ignore
+    } |> ignore
+
+    AppDomain.CurrentDomain.ProcessExit.Add (fun _ ->
+        // incase we exit during the delay
+        task {
+            let! lastLine = Stream.readLineIncludeNewline input
+            if lastLine <> "" then handleLine lastLine
+        } |> ignore
+    )
 
 // TODO dry with tap
 /// Transforms a stream (you probably want to write a newline at some point)
