@@ -187,10 +187,8 @@ let from (text: string) =
 let proc (cmd: string) (args: string seq) (input: StreamReader) =
     let processStartInfo = new ProcessStartInfo()
 
-    // TODO xplat
-    processStartInfo.FileName <- "cmd.exe" 
-    processStartInfo.ArgumentList.Add "/c"
-    processStartInfo.ArgumentList.Add cmd
+    processStartInfo.FileName <- cmd
+
     args |> Seq.iter (processStartInfo.ArgumentList.Add)
 
     processStartInfo.UseShellExecute <- false
