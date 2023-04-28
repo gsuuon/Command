@@ -29,6 +29,26 @@ module private Cells =
 
     AppDomain.CurrentDomain.ProcessExit.Add(fun _ -> hold())
 
+module Stream =
+    let readLineIncludeNewline (input: StreamReader) =
+        task {
+            let sb = new Text.StringBuilder()
+            let mutable shouldRead = true // no while!
+
+            while shouldRead do
+                let next = input.Read()
+                if next = -1 then // end
+                    shouldRead <- false
+                else
+                    let nextChar = next |> char
+                    sb.Append nextChar |> ignore
+
+                    if nextChar = '\n' then
+                        shouldRead <- false
+
+            return sb.ToString()
+        }
+
 type PipeName =
     | Stdout
     | Stdin
@@ -66,12 +86,11 @@ let setupConsole () =
 let consume handleLine (input: StreamReader) =
     task {
         while true do
-            match! input.ReadLineAsync() with
-            | null -> do! Threading.Tasks.Task.Delay 16
+            match! Stream.readLineIncludeNewline input with
+            | "" -> do! Threading.Tasks.Task.Delay 16
             | line -> handleLine line
     }
     |> ignore
-
 
 // TODO dry with tap
 /// Transforms a stream (you probably want to write a newline at some point)
@@ -88,18 +107,18 @@ let transform transformLine (input: StreamReader) =
     let reader = new StreamReader(mem)
     writer.AutoFlush <- true
 
-    let write (line: string) =
+    let write (text: string) =
         let originalPosition = mem.Position
         mem.Seek(0, SeekOrigin.End) |> ignore
-        writer.Write(line)
+        writer.Write text
         mem.Seek(originalPosition, SeekOrigin.Begin) |> ignore
 
     let transformedWrite = transformLine write
 
     task {
         while true do
-            match! input.ReadLineAsync() with
-            | null -> do! Threading.Tasks.Task.Delay 16
+            match! Stream.readLineIncludeNewline input with
+            | "" -> do! Threading.Tasks.Task.Delay 16
             | line -> transformedWrite line
     }
     |> ignore
@@ -154,7 +173,7 @@ let readNow (input: StreamReader) =
 
     task {
         let lines = task {
-            let! line = input.ReadLineAsync()
+            let! line = Stream.readLineIncludeNewline input
             hasRead <- true
 
             let! lines = input.ReadToEndAsync()
