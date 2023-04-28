@@ -1,6 +1,6 @@
-namespace Gsuuon.Command.Console
+namespace Gsuuon.Console
 
-open Gsuuon.Command.Console.Styling
+open Gsuuon.Console.Styling
 
 module Style =
     open System.Drawing
@@ -38,7 +38,7 @@ module Utility =
               "inline=1:" + base64Image ]
 
 module Log =
-    open Gsuuon.Command.Console.Threads
+    open Gsuuon.Console.Threads
 
     let log = printf "%s" |> log'
     let logn = printfn "%s" |> log'

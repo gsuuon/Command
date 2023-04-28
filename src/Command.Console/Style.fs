@@ -1,4 +1,4 @@
-module Gsuuon.Command.Console.Styling
+module Gsuuon.Console.Styling
 
 open System.Drawing
 open System.Numerics

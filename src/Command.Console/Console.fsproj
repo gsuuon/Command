@@ -1,12 +1,13 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
-  <PropertyGroup>
-    <TargetFramework>net7.0</TargetFramework>
-    <GenerateDocumentationFile>true</GenerateDocumentationFile>
-  </PropertyGroup>
+    <PropertyGroup>
+        <TargetFramework>net7.0</TargetFramework>
+        <Version>0.1.1</Version>
+        <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    </PropertyGroup>
 
     <PropertyGroup>
-        <PackageId>Gsuuon.Command.Console</PackageId>
+        <PackageId>Gsuuon.Console</PackageId>
         <!-- <PackageReadmeFile>README.md</PackageReadmeFile> -->
     </PropertyGroup>
 
@@ -14,10 +15,10 @@
         <!-- <None Include="./README.md" Pack="true" PackagePath="\"/> -->
     </ItemGroup>
 
-  <ItemGroup>
-    <Compile Include="Style.fs" />
-    <Compile Include="Threads.fs" />
-    <Compile Include="Library.fs" />
-  </ItemGroup>
+    <ItemGroup>
+        <Compile Include="Style.fs" />
+        <Compile Include="Threads.fs" />
+        <Compile Include="Library.fs" />
+    </ItemGroup>
 
 </Project>
