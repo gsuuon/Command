@@ -1,5 +1,5 @@
 [ Command
-	Command.Console
+	Console
 	Command.Utility ]
 	| each {|d|
 			cd $"src/($d)"
