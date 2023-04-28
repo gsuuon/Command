@@ -2,10 +2,16 @@ module Gsuuon.Command
 
 open System
 open System.IO
+open System.Threading
 open System.Diagnostics
 
 // TODO I need a Stream class that keeps track of if it's open or closed
 // stream class that allows multiple views on it (separate read positions)
+
+module private Task = 
+    let Wait (x: Tasks.Task<_>) =
+        x.Wait()
+        x.Result
 
 module private Cells =
     /// cells.
@@ -16,10 +22,10 @@ module private Cells =
     let decr () = Threading.Interlocked.Decrement(&procCount) |> ignore
     /// within cells interlinked.
     let hold () =
-        (task {
+        task {
             while procCount > 0 do
                 do! Threading.Tasks.Task.Delay 100
-        }).Wait()
+        } |> Task.Wait
 
     AppDomain.CurrentDomain.ProcessExit.Add(fun _ -> hold())
 
@@ -131,9 +137,30 @@ let tap handleLine (input: StreamReader) =
 
     reader
 
-/// Read the stream to its current end. Returns immediately if the stream is already at the
-/// end without blocking.
-let read (input: StreamReader) = input.ReadToEnd()
+/// Read the stream to its current end. Returns immediately if the 
+/// stream is already at the end, or times out in 100ms if no line is read.
+let read (input: StreamReader) =
+    let timeout = 100
+
+    let mutable hasRead = false
+
+    task {
+        let lines = task {
+            let! line = input.ReadLineAsync()
+            hasRead <- true
+
+            let! lines = input.ReadToEndAsync()
+
+            return line + lines
+        }
+
+        do! Tasks.Task.Delay timeout
+
+        if hasRead then return! lines
+        else
+            input.Close()
+            return ""
+    } |> Task.Wait
 
 /// Wait for the process to finish and collect the standard in and error pipes
 let complete (p: Proc) =
