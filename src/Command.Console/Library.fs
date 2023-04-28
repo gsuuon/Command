@@ -31,10 +31,9 @@ module Utility =
         Escape.osc
             "1337"
             [ "File="
-              // "size=" + string bytes.Length
+              // "height=auto" // can set cell size
+              // "width=auto"
               "preserveAspectRatio=1"
-              // "height=512px"
-              // "width=512px"
               "doNotMoveCursor=0"
               "inline=1:" + base64Image ]
 
