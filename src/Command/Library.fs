@@ -57,9 +57,7 @@ type PipeName =
     | Combine of PipeName list
 
 type Proc =
-    { cmd: string
-      args: string seq
-      stdin: StreamWriter
+    { stdin: StreamWriter
       stdout: StreamReader
       stderr: StreamReader
       proc: Process }
@@ -73,13 +71,7 @@ type Proc =
         | Stderr -> prev.stderr
         | Combine names -> failwithf "🤷 what do?"
 
-    static member Create (cmd: string, args: string seq, ?inputStream: StreamReader) =
-        let processStartInfo = new ProcessStartInfo()
-
-        processStartInfo.FileName <- cmd
-
-        args |> Seq.iter (processStartInfo.ArgumentList.Add)
-
+    static member private Start(processStartInfo: ProcessStartInfo, inputStream: StreamReader option) =
         processStartInfo.UseShellExecute <- false
         processStartInfo.RedirectStandardOutput <- true
         processStartInfo.RedirectStandardError <- true
@@ -88,15 +80,19 @@ type Proc =
         let p = new Process()
         p.StartInfo <- processStartInfo
         p.EnableRaisingEvents <- true
-        p.Exited.Add(fun _ ->
-            if p.ExitCode <> 0 then
-                eprintfn "<%s> exited %i" cmd p.ExitCode
 
-            Cells.decr()
-        )
+        p.Exited.Add(fun _ ->
+            if
+                p.ExitCode <> 0
+                && Environment.GetEnvironmentVariable "GSUUON_COMMAND_VERBOSE" = "true"
+            then
+                eprintfn "<%s> exited %i" processStartInfo.FileName p.ExitCode
+
+            Cells.decr ())
+
         p.Start() |> ignore
 
-        Cells.incr()
+        Cells.incr ()
 
         let stdin = p.StandardInput
         let stdout = p.StandardOutput
@@ -107,11 +103,7 @@ type Proc =
             task {
                 while true do
                     match! input.ReadLineAsync() with
-                    | null ->
-                        // readline can return immediately if we're at end of stream but stream is not closed
-                        // how do I figure out if the stream has closed?
-                        // also maybe the stream never closes?
-                        do! Threading.Tasks.Task.Delay 100
+                    | null -> do! Threading.Tasks.Task.Delay 16
                     | line ->
                         do! stdin.WriteLineAsync(line)
                         do! stdin.FlushAsync()
@@ -119,12 +111,26 @@ type Proc =
             |> ignore
         | None -> ()
 
-        { cmd = cmd
-          args = args
-          stdin = stdin
+        { stdin = stdin
           stdout = stdout
           stderr = stderr
           proc = p }
+
+    static member Create(cmd: string, args: string, ?inputStream: StreamReader) =
+        let processStartInfo = new ProcessStartInfo()
+
+        processStartInfo.FileName <- cmd
+        processStartInfo.Arguments <- args
+
+        Proc.Start(processStartInfo, inputStream)
+
+    static member Create(cmd: string, args: string seq, ?inputStream: StreamReader) =
+        let processStartInfo = new ProcessStartInfo()
+
+        processStartInfo.FileName <- cmd
+        args |> Seq.iter (processStartInfo.ArgumentList.Add)
+
+        Proc.Start(processStartInfo, inputStream)
 
 /// Prepare the console. Sets UTF-8 Encoding and handles Ctrl-C.
 /// TODO do I need this?
@@ -142,7 +148,8 @@ let consume handleLine (input: StreamReader) =
             match! Stream.readLineIncludeNewline input with
             | "" -> do! Threading.Tasks.Task.Delay 16
             | line -> handleLine line
-    } |> ignore
+    }
+    |> ignore
 
     AppDomain.CurrentDomain.ProcessExit.Add (fun _ ->
         // incase we exit during the delay
@@ -270,8 +277,11 @@ let from (text: string) =
 
     new StreamReader(mem)
 
-/// Create a new Proc
-let proc = Proc.Create
+/// Create a new Proc with arguments as a single string
+let proc (cmd: string) (args: string) = Proc.Create(cmd, args)
+
+/// Create a new Proc with arguments as a string sequence to properly escape arguments
+let procArgs (cmd: string) (args: string seq) = Proc.Create(cmd, args)
 
 /// Wait for a proc to exit
 let wait proc =
