@@ -52,13 +52,15 @@ let private getResponse () =
     response
 
 let choose (description: string) startIdx (xs: 'a list) =
+    let descLineCount = description.Split("\n").Length
+
+    Console.SetBufferSize(Console.BufferWidth, Console.BufferHeight + xs.Length + descLineCount)
+
     let (x, y) = Console.GetCursorPosition().ToTuple()
 
     Console.WriteLine description
 
-    Console.SetBufferSize(Console.BufferWidth, Console.BufferHeight + xs.Length)
-
-    let chosenOne = 
+    let chosenOne =
         let (x, y) = Console.GetCursorPosition().ToTuple()
 
         let rec choose' idx xs =
@@ -81,14 +83,13 @@ let choose (description: string) startIdx (xs: 'a list) =
 
         let result = choose' startIdx xs
 
-        xs |> Seq.iter (fun _ ->
-            Console.WriteLine(new String(' ', Console.BufferWidth))
-        )
+        xs
+        |> Seq.iter (fun _ -> Console.WriteLine(new String(' ', Console.BufferWidth)))
 
         result
-    
+
     Console.SetCursorPosition(x, y)
 
-    clearLine()
+    clearLine ()
 
     chosenOne
