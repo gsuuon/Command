@@ -8,7 +8,7 @@ open System.Diagnostics
 // TODO I need a Stream class that keeps track of if it's open or closed
 // stream class that allows multiple views on it (separate read positions)
 
-module private Task = 
+module private Task =
     let Wait (x: Tasks.Task<_>) =
         x.Wait()
         x.Result
@@ -16,18 +16,24 @@ module private Task =
 module private Cells =
     /// cells.
     let mutable procCount = 0
+
     /// cells. interlinked.
-    let incr () = Threading.Interlocked.Increment(&procCount) |> ignore
+    let incr () =
+        Threading.Interlocked.Increment(&procCount) |> ignore
+
     /// interlinked.
-    let decr () = Threading.Interlocked.Decrement(&procCount) |> ignore
+    let decr () =
+        Threading.Interlocked.Decrement(&procCount) |> ignore
+
     /// within cells interlinked.
     let hold () =
         task {
             while procCount > 0 do
                 do! Threading.Tasks.Task.Delay 100
-        } |> Task.Wait
+        }
+        |> Task.Wait
 
-    AppDomain.CurrentDomain.ProcessExit.Add(fun _ -> hold())
+    AppDomain.CurrentDomain.ProcessExit.Add(fun _ -> hold ())
 
 module Stream =
     let readLineIncludeNewline (input: StreamReader) =
@@ -38,6 +44,7 @@ module Stream =
 
             while shouldRead do
                 let! readCount = input.ReadAsync(c)
+
                 if readCount = 0 then // end
                     shouldRead <- false
                 else
@@ -78,6 +85,7 @@ type Proc =
         processStartInfo.RedirectStandardInput <- true
 
         let p = new Process()
+
         p.StartInfo <- processStartInfo
         p.EnableRaisingEvents <- true
 
@@ -151,13 +159,15 @@ let consume handleLine (input: StreamReader) =
     }
     |> ignore
 
-    AppDomain.CurrentDomain.ProcessExit.Add (fun _ ->
+    AppDomain.CurrentDomain.ProcessExit.Add(fun _ ->
         // incase we exit during the delay
         task {
             let! lastLine = Stream.readLineIncludeNewline input
-            if lastLine <> "" then handleLine lastLine
-        } |> ignore
-    )
+
+            if lastLine <> "" then
+                handleLine lastLine
+        }
+        |> ignore)
 
 // TODO dry with tap
 /// Transforms a stream (you probably want to write a newline at some point)
@@ -191,7 +201,7 @@ let transform transformLine (input: StreamReader) =
     |> ignore
 
     reader
-    
+
 /// Read the stream and ignore it. Some processes may block until their stdout/stderr buffer is read.
 let sink (input: StreamReader) = consume ignore input
 
@@ -230,7 +240,7 @@ let tap handleLine (input: StreamReader) =
 /// read at all it will block forever.
 let readBlock (input: StreamReader) = input.ReadToEnd()
 
-/// Read the stream to its current end. Returns immediately if the 
+/// Read the stream to its current end. Returns immediately if the
 /// stream is already at the end, or times out in 100ms if no line is read.
 /// Useful for the initial input stream to an application.
 let readNow (input: StreamReader) =
@@ -238,23 +248,26 @@ let readNow (input: StreamReader) =
 
     let mutable hasRead = false
 
-    let lines = task {
-        let! line = Stream.readLineIncludeNewline input
-        hasRead <- true
+    let lines =
+        task {
+            let! line = Stream.readLineIncludeNewline input
+            hasRead <- true
 
-        let! lines = input.ReadToEndAsync()
+            let! lines = input.ReadToEndAsync()
 
-        return line + lines
-    }
+            return line + lines
+        }
 
     task {
         do! Tasks.Task.Delay timeout
 
-        if hasRead then return! lines
+        if hasRead then
+            return! lines
         else
             input.Close()
             return ""
-    } |> Task.Wait
+    }
+    |> Task.Wait
 
 /// Wait for the process to finish and collect the standard in and error pipes
 let complete (p: Proc) =
@@ -263,11 +276,8 @@ let complete (p: Proc) =
 
     p.proc.WaitForExit()
 
-    { p with
-        stdout = pOut
-        stderr = pErr
-    }
-    
+    { p with stdout = pOut; stderr = pErr }
+
 /// Create a pipe input (StreamReader) from some text
 let from (text: string) =
     let mem = new MemoryStream() // no ctor means expandable
