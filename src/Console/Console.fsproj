@@ -16,6 +16,7 @@
     </ItemGroup>
 
     <ItemGroup>
+        <Compile Include="Buffer.fs" />
         <Compile Include="Styling.fs" />
         <Compile Include="Threads.fs" />
         <Compile Include="Library.fs" />

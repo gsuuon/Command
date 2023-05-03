@@ -5,6 +5,7 @@ open System.Drawing
 
 open Gsuuon.Console.Style
 open Gsuuon.Console.Log
+open Gsuuon.Console.Buffer
 
 type private Direction =
     | Up
@@ -74,7 +75,7 @@ let choose (description: string) startIdx (xs: 'a list) =
 
     let (x, y) = Console.GetCursorPosition().ToTuple()
 
-    Console.SetBufferSize(Console.BufferWidth, Console.BufferHeight + xsLineCount + descLineCount)
+    ensureAvailableRows (xsLineCount + descLineCount + 2)
 
     Console.WriteLine description
 
