@@ -19,16 +19,9 @@ type private Response =
     | Cancel
     | Enter
 
-let clearLine () =
-    Console.Write('\r')
-    Console.Write(new String(' ', Console.BufferWidth))
-    Console.Write('\r')
-
 let private getResponse () =
     let treatC = Console.TreatControlCAsInput
-    let visible = Console.CursorVisible
     Console.TreatControlCAsInput <- true
-    Console.CursorVisible <- false
 
     let response =
         let key = Console.ReadKey(true)
@@ -49,50 +42,46 @@ let private getResponse () =
             | x -> Other keyChar
 
     Console.TreatControlCAsInput <- treatC
-    Console.CursorVisible <- visible
 
     response
 
-let choose (description: string) startIdx (xs: 'a list) =
+let choose' display (description: string) startIdx (xs: 'a list) =
     let descLineCount = description.Split('\n').Length
 
-    let showXs = xs |> List.map (fun x ->
-        let content =
-            match box x with
-            | :? string as x -> x
-            | _ -> sprintf "%A" x
+    let showXs =
+        xs
+        |> List.map (fun x ->
+            let content =
+                match box x with
+                | :? string as x -> x
+                | _ -> sprintf "%A" x
 
-        let lineCount = content.Split('\n').Length
+            let lineCount = content.Split('\n').Length
 
-        let content = content.Trim()
-
-        {|
-            content = content
-            lineCount = lineCount
-        |}
-    )
+            {| content = content
+               lineCount = lineCount |})
 
     let xsLineCount = showXs |> List.sumBy (fun s -> s.lineCount)
+    let neededRows = xsLineCount + descLineCount
 
-    let struct(_, y) = Console.GetCursorPosition()
+    let struct (_, y) = Query.getCursorPosition display
 
-    ensureAvailableRows (xsLineCount + descLineCount + 2)
+    ensureAvailableRows display neededRows
+    display Operation.cursorHide
+    display (description + "\n")
 
-    Console.WriteLine description
-
-    let chosenOne =
-        let struct(_, y) = Console.GetCursorPosition()
-
+    let chosen =
         let rec choose' idx =
             showXs
             |> List.iteri (fun i x ->
                 if i = idx then
-                    slogn [ bg Color.Tan ] x.content
+                    display (stext [ bg Color.Tan ] x.content)
                 else
-                    logn x.content
-                )
+                    display x.content
 
-            Console.SetCursorPosition(0, y)
+                display "\n")
+
+            display (Operation.cursorUpLines xsLineCount)
 
             match getResponse () with
             | Cancel -> None
@@ -106,12 +95,9 @@ let choose (description: string) startIdx (xs: 'a list) =
 
         result
 
-    let struct(_, y') = Console.GetCursorPosition()
+    display (Operation.linesDelete neededRows)
+    display Operation.cursorShow
 
-    [y'.. -1 .. y]
-    |> List.iter (fun row ->
-        Console.SetCursorPosition(0, row)
-        Console.Write Operation.eraseLine
-    )
+    chosen
 
-    chosenOne
+let choose x = choose' Console.Error.Write x
