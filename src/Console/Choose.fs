@@ -99,4 +99,9 @@ let choose' display (description: string) startIdx (xs: 'a list) =
 
     chosen
 
+/// Display a list of items to choose from (prints to stderr by default)
+/// jk or ↑↓ to move
+/// ctrl-c or esc to cancel
+/// enter to select highlighted
+/// number to select item (1 indexed)
 let choose x = choose' Console.Error.Write x
