@@ -6,6 +6,7 @@ open System.Drawing
 open Gsuuon.Console.Style
 open Gsuuon.Console.Log
 open Gsuuon.Console.Buffer
+open Gsuuon.Console.Vterm
 
 type private Direction =
     | Up
@@ -73,14 +74,14 @@ let choose (description: string) startIdx (xs: 'a list) =
 
     let xsLineCount = showXs |> List.sumBy (fun s -> s.lineCount)
 
-    let (x, y) = Console.GetCursorPosition().ToTuple()
+    let struct(_, y) = Console.GetCursorPosition()
 
     ensureAvailableRows (xsLineCount + descLineCount + 2)
 
     Console.WriteLine description
 
     let chosenOne =
-        let (x, y) = Console.GetCursorPosition().ToTuple()
+        let struct(_, y) = Console.GetCursorPosition()
 
         let rec choose' idx =
             showXs
@@ -91,7 +92,7 @@ let choose (description: string) startIdx (xs: 'a list) =
                     logn x.content
                 )
 
-            Console.SetCursorPosition(x, y)
+            Console.SetCursorPosition(0, y)
 
             match getResponse () with
             | Cancel -> None
@@ -103,13 +104,14 @@ let choose (description: string) startIdx (xs: 'a list) =
 
         let result = choose' startIdx
 
-        xs
-        |> Seq.iter (fun _ -> Console.WriteLine(new String(' ', Console.BufferWidth)))
-
         result
 
-    Console.SetCursorPosition(x, y)
+    let struct(_, y') = Console.GetCursorPosition()
 
-    clearLine ()
+    [y'.. -1 .. y]
+    |> List.iter (fun row ->
+        Console.SetCursorPosition(0, row)
+        Console.Write Operation.eraseLine
+    )
 
     chosenOne
