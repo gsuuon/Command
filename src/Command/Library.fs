@@ -148,7 +148,8 @@ type Proc =
         Proc.Start(processStartInfo, inputStream)
 
 /// Prepare the console. Sets UTF-8 Encoding and handles Ctrl-C.
-/// TODO do I need this?
+// TODO do I need this?
+// TODO figure out if console is interactive
 let setupConsole () =
     // Display emojis
     Console.OutputEncoding <- Text.Encoding.UTF8

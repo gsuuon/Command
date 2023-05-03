@@ -19,6 +19,10 @@ module Style =
         let out = cmds |> Seq.map Escape.apply |> String.concat ""
         out + Escape.reset
 
+    let stext (cmds: StylingCommand seq) text =
+        let out = cmds |> Seq.map Escape.apply |> String.concat ""
+        out + text + Escape.reset
+
 module Utility =
     /// Set shell title
     let title text = Escape.osc "2" [ text ]

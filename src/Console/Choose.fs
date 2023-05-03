@@ -4,7 +4,6 @@ open System
 open System.Drawing
 
 open Gsuuon.Console.Style
-open Gsuuon.Console.Log
 open Gsuuon.Console.Buffer
 open Gsuuon.Console.Vterm
 
