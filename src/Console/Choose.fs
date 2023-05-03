@@ -52,36 +52,55 @@ let private getResponse () =
     response
 
 let choose (description: string) startIdx (xs: 'a list) =
-    let descLineCount = description.Split("\n").Length
+    let descLineCount = description.Split('\n').Length
 
-    Console.SetBufferSize(Console.BufferWidth, Console.BufferHeight + xs.Length + descLineCount)
+    let showXs = xs |> List.map (fun x ->
+        let content =
+            match box x with
+            | :? string as x -> x
+            | _ -> sprintf "%A" x
+
+        let lineCount = content.Split('\n').Length
+
+        let content = content.Trim()
+
+        {|
+            content = content
+            lineCount = lineCount
+        |}
+    )
+
+    let xsLineCount = showXs |> List.sumBy (fun s -> s.lineCount)
 
     let (x, y) = Console.GetCursorPosition().ToTuple()
+
+    Console.SetBufferSize(Console.BufferWidth, Console.BufferHeight + xsLineCount + descLineCount)
 
     Console.WriteLine description
 
     let chosenOne =
         let (x, y) = Console.GetCursorPosition().ToTuple()
 
-        let rec choose' idx xs =
-            xs
+        let rec choose' idx =
+            showXs
             |> List.iteri (fun i x ->
                 if i = idx then
-                    slogn [ bg Color.Tan ] (x.ToString())
+                    slogn [ bg Color.Tan ] x.content
                 else
-                    logn (x.ToString()))
+                    logn x.content
+                )
 
             Console.SetCursorPosition(x, y)
 
             match getResponse () with
             | Cancel -> None
             | Enter -> Some xs[idx]
-            | Number n -> if n <= xs.Length then Some xs[n - 1] else choose' idx xs
-            | Navigate Up -> choose' (Math.Max(idx - 1, 0)) xs
-            | Navigate Down -> choose' (Math.Min(idx + 1, xs.Length)) xs
-            | Other c -> choose' idx xs
+            | Number n -> if n <= xs.Length then Some xs[n - 1] else choose' idx
+            | Navigate Up -> choose' (Math.Max(idx - 1, 0))
+            | Navigate Down -> choose' (Math.Min(idx + 1, showXs.Length - 1))
+            | Other c -> choose' idx
 
-        let result = choose' startIdx xs
+        let result = choose' startIdx
 
         xs
         |> Seq.iter (fun _ -> Console.WriteLine(new String(' ', Console.BufferWidth)))
