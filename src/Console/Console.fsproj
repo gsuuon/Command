@@ -16,7 +16,7 @@
     </ItemGroup>
 
     <ItemGroup>
-        <Compile Include="Style.fs" />
+        <Compile Include="Styling.fs" />
         <Compile Include="Threads.fs" />
         <Compile Include="Library.fs" />
         <Compile Include="Choose.fs" />
