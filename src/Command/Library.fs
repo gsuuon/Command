@@ -90,11 +90,10 @@ type Proc =
         p.EnableRaisingEvents <- true
 
         p.Exited.Add(fun _ ->
-            if
-                p.ExitCode <> 0
-                && Environment.GetEnvironmentVariable "GSUUON_COMMAND_VERBOSE" = "true"
-            then
+            #if DEBUG
+            if p.ExitCode <> 0 then
                 eprintfn "<%s> exited %i" processStartInfo.FileName p.ExitCode
+            #endif
 
             Cells.decr ())
 
@@ -125,6 +124,10 @@ type Proc =
           proc = p }
 
     static member Create(cmd: string, args: string, ?inputStream: StreamReader) =
+        #if DEBUG
+        printfn "<%s> [%s]" cmd args
+        #endif
+
         let processStartInfo = new ProcessStartInfo()
 
         processStartInfo.FileName <- cmd
@@ -133,6 +136,10 @@ type Proc =
         Proc.Start(processStartInfo, inputStream)
 
     static member Create(cmd: string, args: string seq, ?inputStream: StreamReader) =
+        #if DEBUG
+        printfn "<%s> %s" cmd (args |> Seq.map (sprintf "[%s]") |> String.concat " ")
+        #endif
+
         let processStartInfo = new ProcessStartInfo()
 
         processStartInfo.FileName <- cmd
