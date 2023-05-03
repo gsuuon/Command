@@ -15,7 +15,7 @@ module Style =
     let text = Text
 
     /// Apply StyleCommands and reset
-    let style (cmds: StyleCommand seq) =
+    let style (cmds: StylingCommand seq) =
         let out = cmds |> Seq.map Escape.apply |> String.concat ""
         out + Escape.reset
 

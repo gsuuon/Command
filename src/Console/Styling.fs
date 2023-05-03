@@ -3,7 +3,7 @@ module Gsuuon.Console.Styling
 open System.Drawing
 open System.Numerics
 
-type StyleCommand =
+type StylingCommand =
     | Foreground of Color
     | Background of Color
     | Text of string
