@@ -12,6 +12,8 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - name: dotnet pack
-        run: dotnet pack -c release
+        run: >
+          dotnet nuget disable source Local
+          dotnet pack -c release
       - name: dotnet publish
         run: dotnet nuget push packages/ -k ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
