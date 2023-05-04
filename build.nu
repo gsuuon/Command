@@ -1,7 +1,10 @@
+rm packages/*
+
 [ Command
-	Console
-	Command.Utility ]
-	| each {|d|
-			cd $"src/($d)"
-			dotnet pack
-	}
+  Console
+  Command.Utility ]
+  | each {|d|
+      cd src
+      cd $d
+      dotnet pack
+  }
