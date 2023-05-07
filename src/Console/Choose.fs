@@ -63,8 +63,6 @@ let choose' display (description: string) startIdx (xs: 'a list) =
     let xsLineCount = showXs |> List.sumBy (fun s -> s.lineCount)
     let neededRows = xsLineCount + descLineCount
 
-    let struct (_, y) = Query.getCursorPosition display
-
     ensureAvailableRows display neededRows
     display Operation.cursorHide
     display (description + "\n")
