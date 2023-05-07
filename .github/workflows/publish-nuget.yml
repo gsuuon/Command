@@ -3,7 +3,7 @@ name: Publish nuget
 on:
   push:
     branches:
-      - gh-action
+      - main
 
 jobs:
   pack-publish-nuget:
