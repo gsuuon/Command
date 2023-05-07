@@ -11,16 +11,10 @@ let err (x: string) = Console.Error.Write x
 
 /// Ensure buffer has additional rows available by displaying newlines
 let ensureAvailableRows display desiredRows =
-    let bufferHeight = Console.BufferHeight
-    let struct(col, row) = Query.getCursorPosition display
-    let availableRows = bufferHeight - row
+    [1..desiredRows]
+    |> Seq.iter(fun _ -> display "\n")
 
-    if availableRows < desiredRows then
-        let additionalRows = desiredRows - availableRows
-        [0..additionalRows]
-        |> Seq.iter (fun _ -> display "\n")
-
-        display (Operation.cursorPosition col (row - additionalRows))
+    display (Operation.cursorUpLines desiredRows)
 
 /// Run an Async in an alternate buffer, returning the async result
 let alternateBuffer (f: Async<_>) =
