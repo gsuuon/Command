@@ -66,4 +66,4 @@ module Query =
     /// Returns struct(col, row)
     let getCursorPosition out =
         out Operation.queryCursorPosition
-        readCursorPosition () |> Option.get
+        readCursorPosition ()
